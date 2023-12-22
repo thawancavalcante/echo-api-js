@@ -1,12 +1,22 @@
 {
     "compilerOptions": {
-      "module": "nodenext",
+      "module": "esnext",
+      "moduleResolution":"node",
+      "allowSyntheticDefaultImports": true,
       "target": "es6",
       "noImplicitAny": true,
       "removeComments": true,
       "outDir": "dist",
-      "sourceMap": true
+      "sourceMap": true,
+      "baseUrl" : ".",
+      "paths": {
+        "@infra/*": ["./src/infra/*"],
+        "@domain/*": ["./src/domain/*"],
+        "@utils/*": ["./src/utils/*"],
+        "@application/*": ["./src/application/*"],
+        "@/*": ["./src/*"],
+      }
     },
-    "include": ["src/**/*"],
+    "include": ["./src/**/*"],
     "exclude": ["**/*.spec.ts"]
   }
