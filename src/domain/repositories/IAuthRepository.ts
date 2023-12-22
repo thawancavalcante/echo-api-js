@@ -7,10 +7,10 @@ export default interface IAuthRepository {
 	getUserById(id: string): Promise<User | undefined>
 	createUser(user: ICreateUserData): Promise<string>
 	generateAuthCode(input: IAuthInput): Promise<string>
-	saveAuth(input: IAuthInput, code: string): Promise<void>
-	validateAuth(code: string): Promise<boolean>
-	decodeAuth(code: string): Promise<User>
-	revoke(code: string): Promise<boolean>
+	saveAuthCode(input: IAuthInput, code: string): Promise<void>
+	validateAuthCode(code: string): Promise<boolean>
+	decodeAuthCode(code: string): Promise<User | undefined>
+	revokeAuthCode(code: string): Promise<boolean>
 }
 
 export interface ICreateUserData {

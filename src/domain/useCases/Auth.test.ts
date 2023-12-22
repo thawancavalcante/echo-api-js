@@ -104,4 +104,95 @@ describe('Auth', () => {
 
 		await expect(auth.login(loginInput)).rejects.toEqual('Email or password incorrect')
 	})
+
+	test('generateAuthCode - get auth code', async () => {
+		const mockedCode = 'generate_code'
+		mockRepository.generateAuthCode = async () => {
+			return mockedCode
+		}
+		mockRepository.saveAuthCode = async () => {}
+
+		const userInput = {
+			id: 'mockedId',
+			email: 'mocked@gmail.com',
+			username: 'mocked',
+		}
+
+		const code = await auth.generateAuthCode(userInput)
+
+		expect(code).toEqual(mockedCode)
+	})
+
+	test('validateAuthCode - validate auth code', async () => {
+		const mockedUser = {
+			id: 'mockedId',
+			email: 'mocked@gmail.com',
+			username: 'mocked',
+		}
+
+		mockRepository.validateAuthCode = async () => {
+			return true
+		}
+		mockRepository.decodeAuthCode = async () => {
+			return mockedUser
+		}
+
+		const userInfos = await auth.validateAuthCode('valid_code')
+
+		expect(userInfos.id).toEqual(mockedUser.id)
+	})
+
+	test('validateAuthCode - invalid auth code', async () => {
+		mockRepository.validateAuthCode = async () => {
+			return false
+		}
+
+		await expect(auth.validateAuthCode('invalid_code')).rejects.toEqual('Forbidden')
+	})
+
+	test('renewAuthCode - renew with success', async () => {
+		const mockedUser = {
+			id: 'mockedId',
+			email: 'mocked@gmail.com',
+			username: 'mocked',
+		}
+
+		mockRepository.validateAuthCode = async () => {
+			return true
+		}
+		mockRepository.decodeAuthCode = async () => {
+			return mockedUser
+		}
+		mockRepository.getUserById = async () => {
+			return mockedUser
+		}
+		mockRepository.saveAuthCode = async () => {}
+		const newMockedCode = 'new_code'
+		mockRepository.generateAuthCode = async () => {
+			return newMockedCode
+		}
+
+		const newCode = await auth.renewAuthCode('valid_code')
+		expect(newCode).toEqual(newMockedCode)
+	})
+
+	test('renewAuthCode - renew with user deleted', async () => {
+		const mockedUser = {
+			id: 'mockedId',
+			email: 'mocked@gmail.com',
+			username: 'mocked',
+		}
+
+		mockRepository.validateAuthCode = async () => {
+			return true
+		}
+		mockRepository.decodeAuthCode = async () => {
+			return mockedUser
+		}
+		mockRepository.getUserById = async () => {
+			return undefined
+		}
+
+		await expect(auth.renewAuthCode('valid_code')).rejects.toEqual('User not found')
+	})
 })

@@ -39,23 +39,26 @@ export default class Auth {
 		return { id: user.id, email: user.email, username: user.username }
 	}
 
-	async generateAuthorization(input: IAuthInput): Promise<string> {
+	async generateAuthCode(input: IAuthInput): Promise<string> {
 		const code = await this.repository.generateAuthCode(input)
-		await this.repository.saveAuth(input, code)
+		await this.repository.saveAuthCode(input, code)
 		return code
 	}
 
-	async validateAuthorization(code: string): Promise<User> {
-		const valid = this.repository.validateAuth(code)
+	async validateAuthCode(code: string): Promise<User> {
+		const valid = await this.repository.validateAuthCode(code)
 		if (!valid) throw 'Forbidden'
-		const userInfo = this.repository.decodeAuth(code)
+		const userInfo = await this.repository.decodeAuthCode(code)
 		return userInfo
 	}
 
-	async renewAuth(code: string): Promise<string> {
-		const decodedInfos = await this.validateAuthorization(code)
+	async renewAuthCode(code: string): Promise<string> {
+		const decodedInfos = await this.validateAuthCode(code)
 		const user = await this.repository.getUserById(decodedInfos.id)
-		const newCode = await this.generateAuthorization({
+		if (!user) {
+			throw 'User not found'
+		}
+		const newCode = await this.generateAuthCode({
 			id: user.id,
 			email: user.email,
 			username: user.username,
@@ -63,7 +66,7 @@ export default class Auth {
 		return newCode
 	}
 
-	async revokeAuth(code: string): Promise<boolean> {
-		return this.repository.revoke(code)
+	async revokeAuthCode(code: string): Promise<boolean> {
+		return this.repository.revokeAuthCode(code)
 	}
 }
