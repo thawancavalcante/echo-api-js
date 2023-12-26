@@ -14,9 +14,3 @@ export interface IUserOutput {
 	email: string
 	username: string
 }
-
-export interface IAuthInput {
-	id: string
-	email: string
-	username: string
-}

@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
+    "fast-jwt": "^3.3.2",
     "fastify": "^4.25.1",
     "ksuid": "^3.0.0"
   }

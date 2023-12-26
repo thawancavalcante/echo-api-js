@@ -1,8 +1,31 @@
+import { TokenPayload } from '@domain/entities/Token'
 import User from '@domain/entities/User'
 import IAuthRepository, { ICreateUserData } from '@domain/repositories/IAuthRepository'
-import { IAuthInput } from '@domain/useCases/interfaces/IAuth'
 
 export default class AuthRepositoryMock implements IAuthRepository {
+	async updateRefreshToken(currentTokenPayload: TokenPayload): Promise<string> {
+		throw `${this.updateRefreshToken.name} - Method not implemented`
+	}
+	async createRefreshToken(userId: string, contextId: string): Promise<string> {
+		throw `${this.createRefreshToken.name} - Method not implemented`
+	}
+
+	async createAccessToken(userId: string, contextId: string): Promise<string> {
+		throw `${this.createAccessToken.name} - Method not implemented`
+	}
+
+	async decodeToken(token: string): Promise<TokenPayload> {
+		throw `${this.decodeToken.name} - Method not implemented`
+	}
+
+	async revokeRefreshToken(contextId: string): Promise<void> {
+		throw `${this.revokeRefreshToken.name} - Method not implemented`
+	}
+
+	async getRefreshToken(contextId: string): Promise<string> {
+		throw `${this.getRefreshToken.name} - Method not implemented`
+	}
+
 	async createUser(user: ICreateUserData): Promise<string> {
 		throw `${this.createUser.name} - Method not implemented`
 	}
@@ -15,27 +38,7 @@ export default class AuthRepositoryMock implements IAuthRepository {
 		throw `${this.verifyEmailAlreadyUsed.name} - Method not implemented`
 	}
 
-	async decodeAuthCode(code: string): Promise<User> {
-		throw `${this.decodeAuthCode.name} - Method not implemented`
-	}
-
-	async generateAuthCode(input: IAuthInput): Promise<string> {
-		throw `${this.generateAuthCode.name} - Method not implemented`
-	}
-
 	async getUserById(id: string): Promise<User> {
 		throw `${this.getUserById.name} - Method not implemented`
-	}
-
-	async revokeAuthCode(code: string): Promise<boolean> {
-		throw `${this.revokeAuthCode.name} - Method not implemented`
-	}
-
-	async saveAuthCode(input: IAuthInput, code: string): Promise<void> {
-		throw `${this.saveAuthCode.name} - Method not implemented`
-	}
-
-	async validateAuthCode(code: string): Promise<boolean> {
-		throw `${this.validateAuthCode.name} - Method not implemented`
 	}
 }
