@@ -1,10 +1,14 @@
 import { LoginInput, RegisterInput } from '@application/dto/AuthDto'
-import Tokens from '@domain/entities/Token'
-import User from '@domain/entities/User'
+import { Tokens } from '@domain/entities/Token'
+import IAuthRepository from '@domain/repositories/IAuthRepository'
 import AuthService from '@domain/services/AuthService'
 
 export default class AuthController {
-	constructor(readonly service: AuthService) {}
+	private readonly service: AuthService
+
+	constructor(readonly repository: IAuthRepository) {
+		this.service = new AuthService(repository)
+	}
 
 	async regiter(input: RegisterInput): Promise<Tokens> {
 		const newUser = await this.service.register(input)
@@ -18,12 +22,17 @@ export default class AuthController {
 		return tokens
 	}
 
-	async renew(code: string): Promise<Tokens> {
-		const newTokens = await this.service.renewTokens(code)
+	async logout(refreshToken: string): Promise<void> {
+		await this.service.revokeRefreshToken(refreshToken)
+	}
+
+	async renewAccessToken(accessToken: string, refreshToken: string): Promise<Tokens> {
+		const newTokens = await this.service.renewAccessToken(accessToken, refreshToken)
 		return newTokens
 	}
 
-	async revoke(code: string): Promise<boolean> {
-		return this.service.revokeAuthCode(code)
+	async renewRefreshToken(refreshToken: string): Promise<Tokens> {
+		const newTokens = await this.service.renewRefreshToken(refreshToken)
+		return newTokens
 	}
 }

@@ -18,3 +18,7 @@
     - Get
     - Update
 */
+
+import * as api from '@infra/api'
+
+api.start()

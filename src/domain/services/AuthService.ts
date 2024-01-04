@@ -84,12 +84,12 @@ export default class AuthService {
 		throw '401-Mismatch'
 	}
 
-	private async revokeTokenByContextId(contextIds: string[]) {
+	private async revokeTokenByContextId(contextIds: string[]): Promise<void> {
 		const revokePromises: Promise<void>[] = contextIds.map((contextId) =>
 			this.repository.revokeRefreshToken(contextId),
 		)
 
-		return Promise.all(revokePromises)
+		await Promise.all(revokePromises)
 	}
 
 	async validateAccessToken(accessToken: string, refreshToken: string): Promise<boolean> {
