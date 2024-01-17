@@ -74,13 +74,13 @@ export default class InMemoryAuth implements IAuthRepository {
 		const decoded = (await decode(token)) as {
 			jti: string
 			sub: string
-			expiresIn: number
+			exp: number
 		}
 
 		return {
 			contextId: decoded.jti,
 			userId: decoded.sub,
-			expiresIn: decoded.expiresIn,
+			expiresIn: decoded.exp,
 		}
 	}
 

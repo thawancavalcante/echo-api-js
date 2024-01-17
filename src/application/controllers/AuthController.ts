@@ -1,14 +1,9 @@
 import { LoginInput, RegisterInput } from '@application/dto/AuthDto'
 import { Tokens } from '@domain/entities/Token'
-import IAuthRepository from '@domain/repositories/IAuthRepository'
 import AuthService from '@domain/services/AuthService'
 
 export default class AuthController {
-	private readonly service: AuthService
-
-	constructor(readonly repository: IAuthRepository) {
-		this.service = new AuthService(repository)
-	}
+	constructor(readonly service: AuthService) {}
 
 	async regiter(input: RegisterInput): Promise<Tokens> {
 		const newUser = await this.service.register(input)

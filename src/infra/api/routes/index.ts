@@ -1,19 +1,17 @@
 import { FastifyInstance, RegisterOptions } from 'fastify'
-import IRouter from './IRoute'
+import IRouter from '../interfaces/IRoute'
 import AuthRoutes from './auth'
-import ApiRoutes from './api'
-import InMemoryAuth from '@application/repositories/InMemoryAuth'
+import ServerRoutes from './server'
+import AuthService from '@domain/services/AuthService'
 
 export default class Router implements IRouter {
 	private readonly options: RegisterOptions = { prefix: 'api' }
 	private readonly authRoutes: AuthRoutes
-	private readonly apiRoutes: ApiRoutes
+	private readonly serverRoutes: ServerRoutes
 
-	constructor(readonly fastify: FastifyInstance) {
-		this.apiRoutes = new ApiRoutes(fastify)
-
-		const authRepo = new InMemoryAuth()
-		this.authRoutes = new AuthRoutes(fastify, authRepo)
+	constructor(readonly fastify: FastifyInstance, readonly authService: AuthService) {
+		this.serverRoutes = new ServerRoutes(fastify)
+		this.authRoutes = new AuthRoutes(fastify, authService)
 	}
 
 	async register() {
@@ -21,7 +19,6 @@ export default class Router implements IRouter {
 	}
 
 	async routes() {
-		this.apiRoutes.register()
-		this.authRoutes.register()
+		await Promise.all([this.serverRoutes.register(), this.authRoutes.register()])
 	}
 }

@@ -1,7 +1,7 @@
 import { compareHash, generateHash } from '@utils/hash'
 import IAuthRepository from '@domain/repositories/IAuthRepository'
 import { IRegisterInput, ILoginInput, IUserOutput } from '@domain/services/interfaces/IAuth'
-import { Tokens } from '@domain/entities/Token'
+import { TokenPayload, Tokens } from '@domain/entities/Token'
 import { generateId } from '@utils/id'
 
 //TODO: get fingerprint props to know about the user device, with that we can create a way to manager connected devices
@@ -54,6 +54,9 @@ export default class AuthService {
 	private async validateTokensMismatch(accessToken: string, sessionRefreshToken: string): Promise<void> {
 		const accessTokenDecoded = await this.repository.decodeToken(accessToken)
 		const currentRefreshToken = await this.repository.getRefreshToken(accessTokenDecoded.contextId)
+		if (!currentRefreshToken) {
+			await this.mismatchErrorHandler()
+		}
 		const refreshTokenDecoded = await this.repository.decodeToken(currentRefreshToken)
 
 		if (currentRefreshToken !== sessionRefreshToken) {
@@ -92,16 +95,11 @@ export default class AuthService {
 		await Promise.all(revokePromises)
 	}
 
-	async validateAccessToken(accessToken: string, refreshToken: string): Promise<boolean> {
+	async validateAccessToken(accessToken: string, refreshToken: string): Promise<TokenPayload> {
 		await this.validateTokensMismatch(accessToken, refreshToken)
 
 		const accessTokenDecoded = await this.repository.decodeToken(accessToken)
-		const now = new Date()
-		if (accessTokenDecoded.expiresIn < now.valueOf()) {
-			return false
-		}
-
-		return true
+		return accessTokenDecoded
 	}
 
 	async renewAccessToken(accessToken: string, refreshToken: string): Promise<Tokens> {

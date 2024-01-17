@@ -1,4 +1,3 @@
-import { StatusCode } from '@infra/api/utils/StatusCode'
 import { Static, Type } from '@sinclair/typebox'
 
 export const TokensResponse = Type.Object({
@@ -16,31 +15,9 @@ export const RegisterBody = Type.Object({
 
 export type RegisterBodyType = Static<typeof RegisterBody>
 
-export const registerSchema = {
-	schema: {
-		summary: 'Register a new user',
-		tags: ['auth'],
-		body: RegisterBody,
-		response: {
-			[StatusCode.CREATED]: TokensResponse,
-		},
-	},
-}
-
 export const LoginBody = Type.Object({
 	email: Type.String({ format: 'email' }),
 	password: Type.String({ minLength: 8 }),
 })
 
 export type LoginBodyType = Static<typeof LoginBody>
-
-export const loginSchema = {
-	schema: {
-		summary: 'Login with a exist user',
-		tags: ['auth'],
-		body: LoginBody,
-		response: {
-			[StatusCode.OK]: TokensResponse,
-		},
-	},
-}

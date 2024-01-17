@@ -1,16 +1,18 @@
 import { FastifyInstance, RegisterOptions } from 'fastify'
-import IRouter from '../IRoute'
-import IAuthRepository from '@domain/repositories/IAuthRepository'
+import IRouter from '../../interfaces/IRoute'
 import AuthController from '@application/controllers/AuthController'
 import { StatusCode } from '../../utils/StatusCode'
-import { LoginBodyType, RegisterBodyType, TokensResponseType, loginSchema, registerSchema } from './schema'
+import { LoginBody, LoginBodyType, RegisterBody, RegisterBodyType, TokensResponse, TokensResponseType } from './schema'
+import AuthService from '@domain/services/AuthService'
+import ICustomFastifyRequest from '@infra/api/interfaces/ICustomFastifyRequest'
 
+//TODO: need's a error handler
 export default class AuthRoutes implements IRouter {
 	private readonly options: RegisterOptions = { prefix: 'auth' }
 	private readonly controller: AuthController
 
-	constructor(readonly fastify: FastifyInstance, readonly repository: IAuthRepository) {
-		this.controller = new AuthController(repository)
+	constructor(readonly fastify: FastifyInstance, readonly authService: AuthService) {
+		this.controller = new AuthController(authService)
 	}
 
 	async register(): Promise<void> {
@@ -20,7 +22,16 @@ export default class AuthRoutes implements IRouter {
 	async routes(fastify: FastifyInstance): Promise<void> {
 		fastify.post<{ Body: RegisterBodyType; Reply: TokensResponseType }>(
 			'/register',
-			registerSchema,
+			{
+				schema: {
+					summary: 'Register a new user',
+					tags: ['auth'],
+					body: RegisterBody,
+					response: {
+						[StatusCode.CREATED]: TokensResponse,
+					},
+				},
+			},
 			async (request, reply) => {
 				const response = await this.controller.regiter({
 					email: request.body.email,
@@ -32,13 +43,42 @@ export default class AuthRoutes implements IRouter {
 			},
 		)
 
-		fastify.post<{ Body: LoginBodyType }>('/login', loginSchema, async (request, reply) => {
-			const response = await this.controller.login({ email: request.body.email, password: request.body.password })
-			reply.status(StatusCode.OK).send(response as TokensResponseType)
-		})
+		fastify.post<{ Body: LoginBodyType }>(
+			'/login',
+			{
+				schema: {
+					summary: 'Login with an exist user',
+					tags: ['auth'],
+					body: LoginBody,
+					response: {
+						[StatusCode.OK]: TokensResponse,
+					},
+				},
+			},
+			async (request, reply) => {
+				const response = await this.controller.login({
+					email: request.body.email,
+					password: request.body.password,
+				})
+				reply.status(StatusCode.OK).send(response as TokensResponseType)
+			},
+		)
 
-		fastify.get('/', async (req, res) => {
-			console.log(this.repository)
-		})
+		fastify.get(
+			'/me',
+			{
+				schema: {
+					summary: 'see autheticated user data',
+					tags: ['auth'],
+					headers: {
+						Authorization: true,
+					},
+				},
+				onRequest: [fastify.authenticate],
+			},
+			async (req: ICustomFastifyRequest, reply) => {
+				reply.code(StatusCode.OK).send(req.userPayload)
+			},
+		)
 	}
 }
