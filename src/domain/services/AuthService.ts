@@ -2,7 +2,6 @@ import { compareHash, generateHash } from '@utils/hash'
 import IAuthRepository from '@domain/repositories/IAuthRepository'
 import { IRegisterInput, ILoginInput, IUserOutput } from '@domain/services/interfaces/IAuth'
 import { TokenPayload, Tokens } from '@domain/entities/Token'
-import { generateId } from '@utils/id'
 
 //TODO: get fingerprint props to know about the user device, with that we can create a way to manager connected devices
 export default class AuthService {
@@ -42,124 +41,78 @@ export default class AuthService {
 	}
 
 	async createTokens(userId: string): Promise<Tokens> {
-		const contextId = await generateId()
-		const refreshToken = await this.repository.createRefreshToken(userId, contextId)
-		const accessToken = await this.repository.createAccessToken(userId, contextId)
+		const contextId = await this.repository.createContext({ userId })
+		const refreshToken = await this.repository.createRefreshToken(contextId, userId)
+		const accessToken = await this.repository.createAccessToken(contextId, userId)
+
 		return {
 			refreshToken,
 			accessToken,
 		}
 	}
 
-	private async validateTokensMismatch(accessToken: string, sessionRefreshToken: string): Promise<void> {
-		const accessTokenDecoded = await this.repository.decodeToken(accessToken)
-		const currentRefreshToken = await this.repository.getRefreshToken(accessTokenDecoded.contextId)
-		if (!currentRefreshToken) {
-			await this.mismatchErrorHandler()
-		}
-		const refreshTokenDecoded = await this.repository.decodeToken(currentRefreshToken)
-
-		if (currentRefreshToken !== sessionRefreshToken) {
-			const sessionRefreshTokenDecoded = await this.repository.decodeToken(sessionRefreshToken)
-			const contextIdsToRevoke = [refreshTokenDecoded.contextId]
-
-			if (sessionRefreshTokenDecoded.contextId !== refreshTokenDecoded.contextId) {
-				contextIdsToRevoke.push(sessionRefreshTokenDecoded.contextId)
-			}
-
-			await this.revokeTokenByContextId(contextIdsToRevoke)
-			await this.mismatchErrorHandler()
+	async validateToken(token: string): Promise<TokenPayload> {
+		const tokenDecoded = await this.repository.decodeToken(token)
+		const context = await this.repository.getContext(tokenDecoded.contextId)
+		if (!context) {
+			throw 'Forbidden'
 		}
 
-		if (refreshTokenDecoded.contextId !== accessTokenDecoded.contextId) {
-			await this.revokeTokenByContextId([refreshTokenDecoded.contextId, accessTokenDecoded.contextId])
-			await this.mismatchErrorHandler()
+		if (tokenDecoded.userId !== context.userId) {
+			await this.repository.revokeContext(tokenDecoded.contextId)
+			//TODO: log security error
+			throw '401-Mismatch'
 		}
 
-		if (refreshTokenDecoded.userId !== accessTokenDecoded.userId) {
-			await this.repository.revokeRefreshToken(refreshTokenDecoded.contextId)
-			await this.mismatchErrorHandler()
-		}
+		return tokenDecoded
 	}
 
-	private async mismatchErrorHandler(): Promise<void> {
-		//TODO: log security error
-		throw '401-Mismatch'
-	}
+	async renewAccessToken(refreshToken: string): Promise<Tokens> {
+		const refreshTokenDecoded = await this.validateToken(refreshToken)
+		const oldContextId = refreshTokenDecoded.contextId
 
-	private async revokeTokenByContextId(contextIds: string[]): Promise<void> {
-		const revokePromises: Promise<void>[] = contextIds.map((contextId) =>
-			this.repository.revokeRefreshToken(contextId),
-		)
+		const contextId = await this.repository.createContext({ userId: refreshTokenDecoded.userId })
+		await this.repository.revokeContext(oldContextId)
 
-		await Promise.all(revokePromises)
-	}
+		const shouldRenewRefreshToken = await this.repository.shouldRenewRefreshToken(refreshTokenDecoded.expiresIn)
 
-	async validateAccessToken(accessToken: string, refreshToken: string): Promise<TokenPayload> {
-		await this.validateTokensMismatch(accessToken, refreshToken)
-
-		const accessTokenDecoded = await this.repository.decodeToken(accessToken)
-		return accessTokenDecoded
-	}
-
-	async renewAccessToken(accessToken: string, refreshToken: string): Promise<Tokens> {
-		await this.validateTokensMismatch(accessToken, refreshToken)
-		const refreshTokenDecoded = await this.repository.decodeToken(refreshToken)
-
-		const now = new Date()
-		if (refreshTokenDecoded.expiresIn < now.valueOf()) {
-			throw 'Refresh token expired'
-		}
-
-		const user = await this.repository.getUserById(refreshTokenDecoded.userId)
-		if (!user) {
-			throw 'User not found'
-		}
-
-		const updatedRefreshToken = await this.repository.updateRefreshToken(refreshTokenDecoded)
-
-		const newAccessToken = await this.repository.createAccessToken(
+		const refreshTokenModified = await this.repository.createRefreshToken(
+			contextId,
 			refreshTokenDecoded.userId,
-			refreshTokenDecoded.contextId,
+			shouldRenewRefreshToken ? undefined : refreshTokenDecoded.expiresIn,
 		)
+
+		const newAccessToken = await this.repository.createAccessToken(contextId, refreshTokenDecoded.userId)
 
 		return {
-			refreshToken: updatedRefreshToken,
+			refreshToken: refreshTokenModified,
 			accessToken: newAccessToken,
 		}
 	}
 
 	async renewRefreshToken(refreshToken: string): Promise<Tokens> {
-		const refreshTokenDecoded = await this.repository.decodeToken(refreshToken)
+		const { userId, contextId: oldContextId } = await this.validateToken(refreshToken)
 
-		const now = new Date()
-		if (refreshTokenDecoded.expiresIn < now.valueOf()) {
-			throw 'Refresh token expired'
-		}
+		const contextId = await this.repository.createContext({ userId })
+		await this.repository.revokeContext(oldContextId)
 
-		const user = await this.repository.getUserById(refreshTokenDecoded.userId)
-		if (!user) {
-			throw 'User not found'
-		}
-
-		const updatedRefreshToken = await this.repository.createRefreshToken(
-			refreshTokenDecoded.userId,
-			refreshTokenDecoded.contextId,
-		)
-
-		const newAccessToken = await this.repository.createAccessToken(
-			refreshTokenDecoded.userId,
-			refreshTokenDecoded.contextId,
-		)
+		const newRefreshToken = await this.repository.createRefreshToken(contextId, userId)
+		const newAccessToken = await this.repository.createAccessToken(contextId, userId)
 
 		return {
-			refreshToken: updatedRefreshToken,
+			refreshToken: newRefreshToken,
 			accessToken: newAccessToken,
 		}
 	}
 
-	async revokeRefreshToken(refreshToken: string): Promise<void> {
-		const refreshTokenDecoded = await this.repository.decodeToken(refreshToken)
-		this.repository.revokeRefreshToken(refreshTokenDecoded.contextId)
+	async revokeAuthorization(contextId: string, userId: string): Promise<void> {
+		const context = await this.repository.getContext(contextId)
+
+		if (context.userId !== userId) {
+			//log security error
+			throw 'Forbiden'
+		}
+
+		await this.repository.revokeContext(contextId)
 	}
 }

@@ -5,6 +5,7 @@ import { StatusCode } from '../../utils/StatusCode'
 import { LoginBody, LoginBodyType, RegisterBody, RegisterBodyType, TokensResponse, TokensResponseType } from './schema'
 import AuthService from '@domain/services/AuthService'
 import ICustomFastifyRequest from '@infra/api/interfaces/ICustomFastifyRequest'
+import { cookieKey } from '@infra/api/utils/cookie'
 
 //TODO: need's a error handler
 export default class AuthRoutes implements IRouter {
@@ -39,7 +40,10 @@ export default class AuthRoutes implements IRouter {
 					username: request.body.username,
 				})
 
-				reply.status(StatusCode.CREATED).send(response as TokensResponseType)
+				reply
+					.setCookie(cookieKey.refreshToken, response.refreshToken)
+					.status(StatusCode.CREATED)
+					.send(response as TokensResponseType)
 			},
 		)
 
@@ -60,7 +64,11 @@ export default class AuthRoutes implements IRouter {
 					email: request.body.email,
 					password: request.body.password,
 				})
-				reply.status(StatusCode.OK).send(response as TokensResponseType)
+
+				reply
+					.setCookie(cookieKey.refreshToken, response.refreshToken)
+					.status(StatusCode.OK)
+					.send(response as TokensResponseType)
 			},
 		)
 
@@ -68,7 +76,7 @@ export default class AuthRoutes implements IRouter {
 			'/me',
 			{
 				schema: {
-					summary: 'see autheticated user data',
+					summary: 'See autheticated user payload',
 					tags: ['auth'],
 					headers: {
 						Authorization: true,

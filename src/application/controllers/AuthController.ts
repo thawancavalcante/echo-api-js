@@ -17,12 +17,12 @@ export default class AuthController {
 		return tokens
 	}
 
-	async logout(refreshToken: string): Promise<void> {
-		await this.service.revokeRefreshToken(refreshToken)
+	async logout(contextId: string, userId: string): Promise<void> {
+		await this.service.revokeAuthorization(contextId, userId)
 	}
 
-	async renewAccessToken(accessToken: string, refreshToken: string): Promise<Tokens> {
-		const newTokens = await this.service.renewAccessToken(accessToken, refreshToken)
+	async renewAccessToken(refreshToken: string): Promise<Tokens> {
+		const newTokens = await this.service.renewAccessToken(refreshToken)
 		return newTokens
 	}
 

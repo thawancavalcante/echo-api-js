@@ -1,11 +1,18 @@
+import { ContextPayload } from '@domain/entities/Context'
 import { TokenPayload } from '@domain/entities/Token'
 import User from '@domain/entities/User'
 import IAuthRepository, { ICreateUserData } from '@domain/repositories/IAuthRepository'
+import { daysUntilExpiration } from '@infra/api/utils/daysUntilExpiration'
+import { env } from '@infra/config/env'
+import { generateId } from '@utils/id'
 import { decode, encode } from '@utils/jwt'
+
+const oneHourInMs = 1000 * 60 * 60
+const oneDayIsMs = oneHourInMs * 24
 
 export default class InMemoryAuth implements IAuthRepository {
 	users: Map<string, User> = new Map<string, User>()
-	cache: Map<string, string> = new Map<string, string>()
+	cache: Map<string, ContextPayload> = new Map<string, ContextPayload>()
 
 	async createUser(user: ICreateUserData): Promise<string> {
 		const newId = `${this.users.size}`
@@ -34,37 +41,22 @@ export default class InMemoryAuth implements IAuthRepository {
 		return this.users.get(key)
 	}
 
-	async createRefreshToken(userId: string, contextId: string): Promise<string> {
+	async createRefreshToken(contextId: string, userId: string, expiresIn?: number): Promise<string> {
 		const headerOptions = {
 			sub: userId,
 			jti: contextId,
-			expiresIn: '15d',
+			expiresIn: expiresIn || oneDayIsMs * env.refreshTokenExpiresInDays,
 		}
 
 		const token = await encode({}, headerOptions)
-
-		this.cache.set(contextId, token)
 		return token
 	}
 
-	async updateRefreshToken(currentTokenPayload: TokenPayload): Promise<string> {
-		const headerOptions = {
-			sub: currentTokenPayload.userId,
-			jti: currentTokenPayload.contextId,
-			expiresIn: currentTokenPayload.expiresIn,
-		}
-
-		const token = await encode({}, headerOptions)
-
-		this.cache.set(currentTokenPayload.contextId, token)
-		return token
-	}
-
-	async createAccessToken(userId: string, contextId: string): Promise<string> {
+	async createAccessToken(contextId: string, userId: string): Promise<string> {
 		const headerOptions = {
 			sub: userId,
 			jti: contextId,
-			expiresIn: '15m',
+			expiresIn: oneHourInMs * env.accessTokenExpiresInHours,
 		}
 
 		return encode({}, headerOptions)
@@ -84,11 +76,23 @@ export default class InMemoryAuth implements IAuthRepository {
 		}
 	}
 
-	async revokeRefreshToken(contextId: string): Promise<void> {
+	async createContext(payload: ContextPayload): Promise<string> {
+		const contextId = await generateId()
+		this.cache.set(contextId, payload)
+		return contextId
+	}
+
+	async getContext(contextId: string): Promise<ContextPayload> {
+		return this.cache.get(contextId)
+	}
+
+	async revokeContext(contextId: string): Promise<void> {
 		this.cache.delete(contextId)
 	}
 
-	async getRefreshToken(contextId: string): Promise<string> {
-		return this.cache.get(contextId)
+	async shouldRenewRefreshToken(currentExpiresIn: number): Promise<boolean> {
+		const daysToExpires = daysUntilExpiration(currentExpiresIn)
+		const halfOfNewTokensExpiresInDays = env.refreshTokenExpiresInDays / 2
+		return daysToExpires < halfOfNewTokensExpiresInDays
 	}
 }

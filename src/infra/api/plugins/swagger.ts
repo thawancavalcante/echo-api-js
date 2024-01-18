@@ -3,15 +3,24 @@ import fastifySwagger from '@fastify/swagger'
 import fastifySwaggerUI from '@fastify/swagger-ui'
 import { FastifyInstance } from 'fastify'
 
-//TODO: add authentication here
 export default fastifyPlugin(async (fastify: FastifyInstance) => {
 	await fastify.register(fastifySwagger, {
 		mode: 'dynamic',
 		openapi: {
 			info: {
-				title: 'API',
+				title: 'Echo api',
 				version: '1.0.0',
 			},
+			// TODO: adjust cookie schema to add refresh token
+			// components: {
+			// 	securitySchemes: {
+			// 		[cookie.refreshToken]: {
+			// 			type: 'apiKey',
+			// 			in: 'cookie',
+			// 			name: cookie.refreshToken,
+			// 		},
+			// 	},
+			// },
 		},
 	})
 

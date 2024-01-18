@@ -16,13 +16,9 @@ export default class ServerRoutes implements IRouter {
 			'/health',
 			{
 				schema: {
-					summary: 'see autheticated user data',
+					summary: 'See if server is healthy',
 					tags: ['server'],
-					headers: {
-						Authorization: true,
-					},
 				},
-				onRequest: [fastify.authenticate],
 			},
 			async (request, reply) => {
 				reply.code(StatusCode.OK)

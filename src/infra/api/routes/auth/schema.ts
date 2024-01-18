@@ -2,7 +2,6 @@ import { Static, Type } from '@sinclair/typebox'
 
 export const TokensResponse = Type.Object({
 	accessToken: Type.String(),
-	refreshToken: Type.String(),
 })
 
 export type TokensResponseType = Static<typeof TokensResponse>
