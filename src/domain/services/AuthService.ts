@@ -40,7 +40,7 @@ export default class AuthService {
 		return { id: user.id, email: user.email, username: user.username }
 	}
 
-	private async createTokens(userId: string): Promise<Tokens> {
+	async createTokens(userId: string): Promise<Tokens> {
 		const contextId = await this.repository.createContext({ userId })
 		const refreshToken = await this.repository.createRefreshToken(contextId, userId)
 		const accessToken = await this.repository.createAccessToken(contextId, userId)

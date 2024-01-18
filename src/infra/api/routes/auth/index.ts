@@ -6,6 +6,14 @@ import { LoginBody, LoginBodyType, RegisterBody, RegisterBodyType, TokensRespons
 import AuthService from '@domain/services/AuthService'
 import ICustomFastifyRequest from '@infra/api/interfaces/ICustomFastifyRequest'
 import { cookieKey } from '@infra/api/utils/cookie'
+import { HttpReasonPhrases } from '@infra/api/utils/HttpReasonPhrases'
+import { ErrorResponse, ErrorResponseType } from '../schema'
+import { CookieSerializeOptions } from '@fastify/cookie'
+
+const refreshTokenCookieOptions: CookieSerializeOptions = {
+	path: '/api/auth/',
+	sameSite: true,
+}
 
 //TODO: need's a error handler
 export default class AuthRoutes implements IRouter {
@@ -33,17 +41,17 @@ export default class AuthRoutes implements IRouter {
 					},
 				},
 			},
-			async (request, reply) => {
-				const response = await this.controller.regiter({
-					email: request.body.email,
-					password: request.body.password,
-					username: request.body.username,
+			async (req, reply) => {
+				const tokens = await this.controller.regiter({
+					email: req.body.email,
+					password: req.body.password,
+					username: req.body.username,
 				})
 
 				reply
-					.setCookie(cookieKey.refreshToken, response.refreshToken)
+					.setCookie(cookieKey.refreshToken, tokens.refreshToken, refreshTokenCookieOptions)
 					.status(StatusCode.CREATED)
-					.send(response as TokensResponseType)
+					.send(tokens as TokensResponseType)
 			},
 		)
 
@@ -59,16 +67,101 @@ export default class AuthRoutes implements IRouter {
 					},
 				},
 			},
-			async (request, reply) => {
-				const response = await this.controller.login({
-					email: request.body.email,
-					password: request.body.password,
+			async (req, reply) => {
+				const tokens = await this.controller.login({
+					email: req.body.email,
+					password: req.body.password,
 				})
 
 				reply
-					.setCookie(cookieKey.refreshToken, response.refreshToken)
+					.setCookie(cookieKey.refreshToken, tokens.refreshToken, refreshTokenCookieOptions)
 					.status(StatusCode.OK)
-					.send(response as TokensResponseType)
+					.send(tokens as TokensResponseType)
+			},
+		)
+
+		fastify.post<{
+			Reply: {
+				[StatusCode.OK]: TokensResponseType
+				[StatusCode.UNAUTHORIZED]: ErrorResponseType
+			}
+		}>(
+			'/renew/access-token',
+			{
+				schema: {
+					summary: 'Renew access token',
+					tags: ['auth'],
+					response: {
+						[StatusCode.OK]: TokensResponse,
+						[StatusCode.UNAUTHORIZED]: ErrorResponse,
+					},
+				},
+			},
+			async (req, reply) => {
+				const refreshToken = req.cookies[cookieKey.refreshToken]
+				if (!refreshToken) {
+					return reply.code(StatusCode.UNAUTHORIZED).send({ message: HttpReasonPhrases.UNAUTHORIZED })
+				}
+
+				const tokens = await this.authService.renewAccessToken(refreshToken)
+
+				reply
+					.setCookie(cookieKey.refreshToken, tokens.refreshToken, {
+						path: '/api/auth/',
+						sameSite: true,
+					})
+					.status(StatusCode.OK)
+					.send(tokens as TokensResponseType)
+			},
+		)
+
+		fastify.post<{
+			Reply: {
+				[StatusCode.OK]: TokensResponseType
+				[StatusCode.UNAUTHORIZED]: ErrorResponseType
+			}
+		}>(
+			'/renew/refresh-token',
+			{
+				schema: {
+					summary: 'Renew refresh token',
+					tags: ['auth'],
+					response: {
+						[StatusCode.OK]: TokensResponse,
+						[StatusCode.UNAUTHORIZED]: ErrorResponse,
+					},
+				},
+			},
+			async (req, reply) => {
+				const refreshToken = req.cookies[cookieKey.refreshToken]
+				if (!refreshToken) {
+					return reply.code(StatusCode.UNAUTHORIZED).send({ message: HttpReasonPhrases.UNAUTHORIZED })
+				}
+
+				const tokens = await this.authService.renewRefreshToken(refreshToken)
+
+				reply
+					.setCookie(cookieKey.refreshToken, tokens.refreshToken, refreshTokenCookieOptions)
+					.status(StatusCode.OK)
+					.send(tokens as TokensResponseType)
+			},
+		)
+
+		fastify.get(
+			'/logout',
+			{
+				schema: {
+					summary: 'Revoke token authentication permissions(logout)',
+					tags: ['auth'],
+					headers: {
+						Authorization: true,
+					},
+				},
+				onRequest: [fastify.authenticate],
+			},
+			async (req: ICustomFastifyRequest, reply) => {
+				await this.controller.logout(req.userPayload.contextId, req.userPayload.userId)
+				reply.clearCookie(cookieKey.refreshToken, refreshTokenCookieOptions).code(StatusCode.OK)
 			},
 		)
 
@@ -85,6 +178,7 @@ export default class AuthRoutes implements IRouter {
 				onRequest: [fastify.authenticate],
 			},
 			async (req: ICustomFastifyRequest, reply) => {
+				console.log(this.authService.repository)
 				reply.code(StatusCode.OK).send(req.userPayload)
 			},
 		)

@@ -121,7 +121,7 @@ describe('AuthService', () => {
 			return 'contextId'
 		}
 
-		const tokens = await auth['createTokens'](userId)
+		const tokens = await auth.createTokens(userId)
 
 		expect(tokens.accessToken).toEqual(mockedCode)
 	})

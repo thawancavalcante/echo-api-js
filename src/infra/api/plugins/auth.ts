@@ -21,7 +21,7 @@ export default fastifyPlugin(
 			const [type, accessToken] = (request.headers.authorization || '').split(' ')
 
 			if (!accessToken) {
-				throw HttpReasonPhrases.FORBIDDEN
+				throw HttpReasonPhrases.UNAUTHORIZED
 			}
 
 			try {

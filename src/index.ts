@@ -1,8 +1,4 @@
 /* TODO:
-* Authentication
-    - Login
-    - Register
-
 * Channels
     - List categories
     - List channels
