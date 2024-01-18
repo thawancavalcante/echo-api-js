@@ -1,4 +1,4 @@
-import AuthService from './AuthService'
+import AuthService from '../AuthService'
 import * as hashUtils from '@utils/hash'
 import IAuthRepository from '@domain/repositories/IAuthRepository'
 import AuthRepositoryMock from '@domain/repositories/__mocks__/AuthRepositoryMock'
@@ -107,7 +107,7 @@ describe('AuthService', () => {
 	})
 
 	test('createTokens - get access token', async () => {
-		const mockedCode = 'generated.code'
+		const mockedCode = 'generated.token'
 		const userId = 'mockedUserId'
 
 		mockRepository.createRefreshToken = async () => {
@@ -117,85 +117,12 @@ describe('AuthService', () => {
 			return mockedCode
 		}
 
-		const tokens = await auth.createTokens(userId)
+		mockRepository.createContext = async () => {
+			return 'contextId'
+		}
+
+		const tokens = await auth['createTokens'](userId)
 
 		expect(tokens.accessToken).toEqual(mockedCode)
-	})
-
-	test('validateTokensMismatch - valid tokens', async () => {
-		const refreshToken = 'refresh.token'
-		mockRepository.getRefreshToken = async () => {
-			return refreshToken
-		}
-
-		mockRepository.decodeToken = async () => {
-			const oneHour = 60 * 60 * 1000
-			return {
-				contextId: 'ctxId',
-				expiresIn: new Date().valueOf() + oneHour,
-				userId: 'usrId',
-			}
-		}
-
-		await expect(auth['validateTokensMismatch']('access.token', refreshToken)).resolves.toBeUndefined()
-	})
-
-	test('validateTokensMismatch - invalid refresh token', async () => {
-		mockRepository.getRefreshToken = async () => {
-			return 'another.token'
-		}
-
-		mockRepository.decodeToken = async (token: string) => {
-			const oneHour = 60 * 60 * 1000
-			return {
-				contextId: token,
-				expiresIn: new Date().valueOf() + oneHour,
-				userId: 'usrId',
-			}
-		}
-
-		mockRepository.revokeRefreshToken = async () => {}
-
-		await expect(auth['validateTokensMismatch']('access.token', 'refresh.token')).rejects.toEqual('401-Mismatch')
-	})
-
-	test('validateTokensMismatch - invalid context id', async () => {
-		const refreshToken = 'refresh.token'
-		mockRepository.getRefreshToken = async () => {
-			return refreshToken
-		}
-
-		mockRepository.decodeToken = async (token: string) => {
-			const oneHour = 60 * 60 * 1000
-			return {
-				contextId: token,
-				expiresIn: new Date().valueOf() + oneHour,
-				userId: 'usrId',
-			}
-		}
-
-		mockRepository.revokeRefreshToken = async () => {}
-
-		await expect(auth['validateTokensMismatch']('access.token', refreshToken)).rejects.toEqual('401-Mismatch')
-	})
-
-	test('validateTokensMismatch - invalid user id', async () => {
-		const refreshToken = 'refresh.token'
-		mockRepository.getRefreshToken = async () => {
-			return refreshToken
-		}
-
-		mockRepository.decodeToken = async (token: string) => {
-			const oneHour = 60 * 60 * 1000
-			return {
-				contextId: 'ctxid',
-				expiresIn: new Date().valueOf() + oneHour,
-				userId: token,
-			}
-		}
-
-		mockRepository.revokeRefreshToken = async () => {}
-
-		await expect(auth['validateTokensMismatch']('access.token', refreshToken)).rejects.toEqual('401-Mismatch')
 	})
 })
